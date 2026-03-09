@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8FAFC"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Mis gastos"
+        android:textColor="#111827"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvSubHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvHeader"
+        android:layout_marginTop="4dp"
+        android:text="Controla tus gastos diarios"
+        android:textColor="#6B7280"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/tvTotal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvSubHeader"
+        android:layout_marginTop="14dp"
+        android:text="Total gastado: $0.00"
+        android:textColor="#14B8A6"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/btnNotification"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvTotal"
+        android:layout_marginTop="14dp"
+        android:backgroundTint="#14B8A6"
+        android:text="Recordatorio"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF" />
+
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/btnNotification"
+        android:layout_alignTop="@id/btnNotification"
+        android:layout_marginStart="12dp"
+        android:backgroundTint="#3B82F6"
+        android:text="Configuración"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewExpenses"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnNotification"
+        android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:paddingBottom="90dp" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddExpense"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="16dp"
+        android:contentDescription="Agregar gasto"
+        app:backgroundTint="#14B8A6"
+        app:srcCompat="@android:drawable/ic_input_add" />
+
+</RelativeLayout>
