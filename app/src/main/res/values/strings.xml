@@ -1,3 +1,21 @@
 <resources>
-    <string name="app_name">ControlGastos</string>
+    <string name="app_name">Control de Gastos</string>
+    <string name="main_title">Mis gastos</string>
+    <string name="main_subtitle">Controla tus gastos diarios</string>
+    <string name="total_spent">Total gastado:</string>
+    <string name="reminder">Recordatorio</string>
+    <string name="settings">Configuración</string>
+    <string name="add_expense">Guardar gasto</string>
+    <string name="new_expense">Nuevo gasto</string>
+    <string name="expense_name">Nombre del gasto</string>
+    <string name="amount">Monto</string>
+    <string name="category">Categoría</string>
+    <string name="date">Fecha</string>
+    <string name="notifications">Activar notificaciones</string>
+    <string name="currency">Moneda</string>
+    <string name="delete_expense">Eliminar gasto</string>
+    <string name="delete_message">¿Deseas eliminar este gasto?</string>
+    <string name="yes">Sí</string>
+    <string name="no">No</string>
+    <string name="update_expense">Actualizar gasto</string>
 </resources>

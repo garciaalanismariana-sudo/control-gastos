@@ -10,7 +10,7 @@
         android:id="@+id/tvHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Mis gastos"
+        android:text="@string/main_title"
         android:textColor="#111827"
         android:textSize="28sp"
         android:textStyle="bold" />
@@ -21,7 +21,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/tvHeader"
         android:layout_marginTop="4dp"
-        android:text="Controla tus gastos diarios"
+        android:text="@string/main_subtitle"
         android:textColor="#6B7280"
         android:textSize="15sp" />
 
@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/tvSubHeader"
         android:layout_marginTop="14dp"
-        android:text="Total gastado: $0.00"
+        android:text="@string/total_spent"
         android:textColor="#14B8A6"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -43,7 +43,7 @@
         android:layout_below="@id/tvTotal"
         android:layout_marginTop="14dp"
         android:backgroundTint="#14B8A6"
-        android:text="Recordatorio"
+        android:text="@string/reminder"
         android:textAllCaps="false"
         android:textColor="#FFFFFF" />
 
@@ -55,7 +55,7 @@
         android:layout_alignTop="@id/btnNotification"
         android:layout_marginStart="12dp"
         android:backgroundTint="#3B82F6"
-        android:text="Configuración"
+        android:text="@string/settings"
         android:textAllCaps="false"
         android:textColor="#FFFFFF" />
 
@@ -75,7 +75,7 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
         android:layout_margin="16dp"
-        android:contentDescription="Agregar gasto"
+        android:contentDescription="@string/add_expense"
         app:backgroundTint="#14B8A6"
         app:srcCompat="@android:drawable/ic_input_add" />
 

@@ -65,7 +65,7 @@ public class AddExpenseActivity extends AppCompatActivity {
             etCategory.setText(category);
             etDate.setText(date);
 
-            btnSaveExpense.setText("Actualizar gasto");
+            btnSaveExpense.setText(R.string.update_expense);
         }
 
         btnSaveExpense.setOnClickListener(v -> {
