@@ -2,69 +2,137 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8FAFC"
-    android:padding="20dp">
+    android:background="#F8FAFC">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="16dp">
 
         <TextView
+            android:id="@+id/tvFormTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Nuevo gasto"
             android:textColor="#111827"
-            android:textSize="26sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="20dp" />
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvFormSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:text="Completa la información y añade ubicación o evidencia si lo deseas"
+            android:textColor="#6B7280"
+            android:textSize="14sp" />
 
         <EditText
             android:id="@+id/etTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:backgroundTint="#14B8A6"
-            android:hint="Nombre del gasto"
+            android:layout_marginBottom="10dp"
+            android:backgroundTint="#D1D5DB"
+            android:hint="Título del gasto"
             android:padding="12dp"
             android:textColor="#111827"
-            android:textColorHint="#6B7280" />
+            android:textColorHint="#9CA3AF" />
 
         <EditText
             android:id="@+id/etAmount"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:backgroundTint="#14B8A6"
+            android:layout_marginBottom="10dp"
+            android:backgroundTint="#D1D5DB"
             android:hint="Monto"
             android:inputType="numberDecimal"
             android:padding="12dp"
             android:textColor="#111827"
-            android:textColorHint="#6B7280" />
+            android:textColorHint="#9CA3AF" />
 
         <EditText
             android:id="@+id/etCategory"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:backgroundTint="#14B8A6"
+            android:layout_marginBottom="10dp"
+            android:backgroundTint="#D1D5DB"
             android:hint="Categoría"
             android:padding="12dp"
             android:textColor="#111827"
-            android:textColorHint="#6B7280" />
+            android:textColorHint="#9CA3AF" />
 
         <EditText
             android:id="@+id/etDate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:backgroundTint="#14B8A6"
-            android:clickable="true"
+            android:layout_marginBottom="14dp"
+            android:backgroundTint="#D1D5DB"
             android:focusable="false"
             android:hint="Fecha"
             android:padding="12dp"
             android:textColor="#111827"
-            android:textColorHint="#6B7280" />
+            android:textColorHint="#9CA3AF" />
+
+        <Button
+            android:id="@+id/btnUbicacion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#2563EB"
+            android:text="Guardar ubicación actual"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/tvUbicacionEstado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="10dp"
+            android:text="📍 Sin ubicación guardada"
+            android:textColor="#374151"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnVerMapa"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:backgroundTint="#14B8A6"
+            android:text="Ver ubicación en mapa"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnCapturarEvidencia"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#9333EA"
+            android:text="Capturar evidencia"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/tvEvidenciaEstado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="10dp"
+            android:text="📷 Sin evidencia adjunta"
+            android:textColor="#374151"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/ivEvidencia"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:layout_marginBottom="14dp"
+            android:adjustViewBounds="true"
+            android:background="#E5E7EB"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btnSaveExpense"
@@ -76,5 +144,4 @@
             android:textColor="#FFFFFF" />
 
     </LinearLayout>
-
 </ScrollView>

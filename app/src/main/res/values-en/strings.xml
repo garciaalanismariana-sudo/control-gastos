@@ -18,4 +18,5 @@
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="update_expense">Update expense</string>
+    <string name="total_spent_format">Total spent: %1$s%2$.2f</string>
 </resources>

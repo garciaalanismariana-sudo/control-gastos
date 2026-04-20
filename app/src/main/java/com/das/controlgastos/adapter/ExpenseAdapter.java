@@ -15,13 +15,14 @@ import com.das.controlgastos.R;
 import com.das.controlgastos.model.Expense;
 
 import java.util.List;
+import java.util.Locale;
 
 public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseViewHolder> {
 
-    private Context context;
-    private List<Expense> expenseList;
-    private OnExpenseClickListener clickListener;
-    private OnExpenseLongClickListener longClickListener;
+    private final Context context;
+    private final List<Expense> expenseList;
+    private final OnExpenseClickListener clickListener;
+    private final OnExpenseLongClickListener longClickListener;
 
     public interface OnExpenseClickListener {
         void onExpenseClick(Expense expense);
@@ -44,10 +45,8 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
     @NonNull
     @Override
     public ExpenseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_expense, parent, false);
-
         return new ExpenseViewHolder(view);
     }
 
@@ -59,28 +58,30 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
         String currency = preferences.getString("currency", "$");
 
         holder.tvTitle.setText(expense.getTitle());
-        holder.tvAmount.setText(currency + String.format("%.2f", expense.getAmount()));
-        holder.tvCategory.setText(expense.getCategory());
+        holder.tvAmount.setText(currency + String.format(Locale.getDefault(), "%.2f", expense.getAmount()));
         holder.tvDate.setText(expense.getDate());
 
-        String category = expense.getCategory().toLowerCase();
+        String category = expense.getCategory() != null
+                ? expense.getCategory().toLowerCase(Locale.getDefault())
+                : "";
 
         if (category.contains("aliment")) {
+            holder.tvCategory.setText("🍔 " + expense.getCategory());
             holder.tvIcon.setText("🍔");
             holder.tvIcon.setTextColor(Color.parseColor("#16A34A"));
             holder.tvAmount.setTextColor(Color.parseColor("#16A34A"));
-        }
-        else if (category.contains("trans")) {
+        } else if (category.contains("trans")) {
+            holder.tvCategory.setText("🚗 " + expense.getCategory());
             holder.tvIcon.setText("🚗");
             holder.tvIcon.setTextColor(Color.parseColor("#2563EB"));
             holder.tvAmount.setTextColor(Color.parseColor("#2563EB"));
-        }
-        else if (category.contains("ocio")) {
+        } else if (category.contains("ocio")) {
+            holder.tvCategory.setText("🎬 " + expense.getCategory());
             holder.tvIcon.setText("🎬");
             holder.tvIcon.setTextColor(Color.parseColor("#9333EA"));
             holder.tvAmount.setTextColor(Color.parseColor("#9333EA"));
-        }
-        else {
+        } else {
+            holder.tvCategory.setText("💼 " + expense.getCategory());
             holder.tvIcon.setText("💰");
             holder.tvIcon.setTextColor(Color.parseColor("#14B8A6"));
             holder.tvAmount.setTextColor(Color.parseColor("#14B8A6"));
@@ -105,7 +106,6 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
 
         public ExpenseViewHolder(@NonNull View itemView) {
             super(itemView);
-
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvAmount = itemView.findViewById(R.id.tvAmount);
             tvCategory = itemView.findViewById(R.id.tvCategory);

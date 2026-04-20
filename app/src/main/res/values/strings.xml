@@ -18,4 +18,5 @@
     <string name="yes">Sí</string>
     <string name="no">No</string>
     <string name="update_expense">Actualizar gasto</string>
+    <string name="total_spent_format">Total gastado: %1$s%2$.2f</string>
 </resources>

@@ -2,9 +2,9 @@ package com.das.controlgastos;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
@@ -16,6 +16,7 @@ import com.das.controlgastos.adapter.ExpenseAdapter;
 import com.das.controlgastos.database.DatabaseHelper;
 import com.das.controlgastos.model.Expense;
 import com.das.controlgastos.ui.AddExpenseActivity;
+import com.das.controlgastos.ui.LoginActivity;
 import com.das.controlgastos.ui.SettingsActivity;
 import com.das.controlgastos.utils.NotificationHelper;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -33,16 +34,27 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseHelper databaseHelper;
 
     private TextView tvTotal;
-    private Button btnNotification;
-    private Button btnSettings;
+    private Button btnNotification, btnSettings;
+    private ImageButton btnLogout;
+
+    private String userEmail;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        NotificationHelper.createChannel(this);
+        SharedPreferences prefs = getSharedPreferences("sesion", MODE_PRIVATE);
+        boolean logueado = prefs.getBoolean("logueado", false);
+        userEmail = prefs.getString("email", "");
 
+        if (!logueado || userEmail == null || userEmail.isEmpty()) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
+        NotificationHelper.createChannel(this);
         databaseHelper = new DatabaseHelper(this);
 
         recyclerViewExpenses = findViewById(R.id.recyclerViewExpenses);
@@ -52,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
         tvTotal = findViewById(R.id.tvTotal);
         btnNotification = findViewById(R.id.btnNotification);
         btnSettings = findViewById(R.id.btnSettings);
+        btnLogout = findViewById(R.id.btnLogout);
 
         expenseList = new ArrayList<>();
 
@@ -59,12 +72,15 @@ public class MainActivity extends AppCompatActivity {
                 this,
                 expenseList,
                 expense -> {
-                    Intent intent = new Intent(MainActivity.this, AddExpenseActivity.class);
+                    Intent intent = new Intent(this, AddExpenseActivity.class);
                     intent.putExtra("id", expense.getId());
                     intent.putExtra("title", expense.getTitle());
                     intent.putExtra("amount", expense.getAmount());
                     intent.putExtra("category", expense.getCategory());
                     intent.putExtra("date", expense.getDate());
+                    intent.putExtra("latitud", expense.getLatitud());
+                    intent.putExtra("longitud", expense.getLongitud());
+                    intent.putExtra("evidencia", expense.getEvidencia());
                     startActivityForResult(intent, 1);
                 },
                 expense -> showDeleteDialog(expense)
@@ -74,101 +90,84 @@ public class MainActivity extends AppCompatActivity {
 
         loadExpenses();
 
-        fabAddExpense.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, AddExpenseActivity.class);
-            startActivityForResult(intent, 1);
-        });
+        fabAddExpense.setOnClickListener(v ->
+                startActivityForResult(new Intent(this, AddExpenseActivity.class), 1)
+        );
 
         btnNotification.setOnClickListener(v -> {
             SharedPreferences preferences = getSharedPreferences("app_settings", MODE_PRIVATE);
-            boolean notificationsEnabled = preferences.getBoolean("notifications", true);
-
-            if (notificationsEnabled) {
+            if (preferences.getBoolean("notifications", true)) {
                 NotificationHelper.showNotification(this);
             }
         });
 
-        btnSettings.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-            startActivity(intent);
-        });
+        btnSettings.setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class))
+        );
+
+        if (btnLogout != null) {
+            btnLogout.setOnClickListener(v -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("Cerrar sesión")
+                        .setMessage("¿Deseas cerrar sesión?")
+                        .setPositiveButton("Sí", (dialog, which) -> {
+                            getSharedPreferences("sesion", MODE_PRIVATE)
+                                    .edit()
+                                    .clear()
+                                    .apply();
+
+                            ExpenseWidgetProvider.actualizarTodosLosWidgets(this);
+
+                            startActivity(new Intent(this, LoginActivity.class));
+                            finish();
+                        })
+                        .setNegativeButton("No", null)
+                        .show();
+            });
+        }
+
     }
 
     private void loadExpenses() {
-
         expenseList.clear();
-
-        Cursor cursor = databaseHelper.getAllExpenses();
-
-        if (cursor != null && cursor.moveToFirst()) {
-
-            do {
-
-                int id = cursor.getInt(0);
-                String title = cursor.getString(1);
-                double amount = cursor.getDouble(2);
-                String category = cursor.getString(3);
-                String date = cursor.getString(4);
-
-                Expense expense = new Expense(
-                        id,
-                        title,
-                        amount,
-                        category,
-                        date,
-                        "",
-                        "",
-                        true
-                );
-
-                expenseList.add(expense);
-
-            } while (cursor.moveToNext());
-
-            cursor.close();
-        }
-
+        expenseList.addAll(databaseHelper.getAllExpenses(userEmail));
         expenseAdapter.notifyDataSetChanged();
         updateTotal();
+        ExpenseWidgetProvider.actualizarTodosLosWidgets(this);
     }
 
     private void updateTotal() {
+        SharedPreferences preferences = getSharedPreferences("app_settings", MODE_PRIVATE);
+        String currencySymbol = preferences.getString("currency", "$");
 
         double total = 0;
-
-        for (Expense expense : expenseList) {
-            total += expense.getAmount();
+        for (Expense e : expenseList) {
+            total += e.getAmount();
         }
 
-        SharedPreferences preferences = getSharedPreferences("app_settings", MODE_PRIVATE);
-        String currency = preferences.getString("currency", "$");
-
-        tvTotal.setText("Total gastado: " + currency + String.format("%.2f", total));
+        tvTotal.setText(getString(R.string.total_spent_format, currencySymbol, total));
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        updateTotal();
-        expenseAdapter.notifyDataSetChanged();
+        loadExpenses();
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == 1 && resultCode == RESULT_OK) {
             loadExpenses();
         }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void showDeleteDialog(Expense expense) {
-
         new AlertDialog.Builder(this)
                 .setTitle("Eliminar gasto")
                 .setMessage("¿Deseas eliminar este gasto?")
                 .setPositiveButton("Sí", (dialog, which) -> {
-                    databaseHelper.deleteExpense(expense.getId());
+                    databaseHelper.deleteExpense(expense.getId(), userEmail);
                     loadExpenses();
                 })
                 .setNegativeButton("No", null)

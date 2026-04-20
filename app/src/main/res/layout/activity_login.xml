@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#F8FAFC">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bienvenido"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="#111827" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Inicia sesión para continuar"
+        android:textSize="14sp"
+        android:textColor="#6B7280"
+        android:layout_marginBottom="20dp" />
+
+    <EditText
+        android:id="@+id/etEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Correo electrónico"
+        android:layout_marginBottom="12dp"
+        android:padding="12dp"
+        android:backgroundTint="#D1D5DB"
+        android:textColor="#111827"
+        android:textColorHint="#9CA3AF" />
+
+    <EditText
+        android:id="@+id/etPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Contraseña"
+        android:inputType="textPassword"
+        android:layout_marginBottom="18dp"
+        android:padding="12dp"
+        android:backgroundTint="#D1D5DB"
+        android:textColor="#111827"
+        android:textColorHint="#9CA3AF" />
+
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Iniciar sesión"
+        android:textAllCaps="false"
+        android:backgroundTint="#14B8A6"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnIrRegistro"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Crear cuenta"
+        android:textAllCaps="false"
+        android:backgroundTint="#3B82F6"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
