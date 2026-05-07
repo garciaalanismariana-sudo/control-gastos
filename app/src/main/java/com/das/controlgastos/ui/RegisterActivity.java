@@ -46,9 +46,12 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void registrarUsuario(String nombreTxt, String emailTxt, String passwordTxt) {
         try {
-            URL url = new URL("http://10.0.2.2:8080/controlgastos/registro_usuario.php");
+            URL url = new URL("https://mariana.alwaysdata.net/registro_usuario.php");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36");
+            conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            conn.setRequestProperty("Referer", "https://mariana.alwaysdata.net/");
+            conn.setRequestProperty("Origin", "https://mariana.alwaysdata.net");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.setRequestMethod("POST");

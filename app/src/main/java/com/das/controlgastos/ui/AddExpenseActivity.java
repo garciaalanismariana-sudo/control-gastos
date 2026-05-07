@@ -249,7 +249,7 @@ public class AddExpenseActivity extends AppCompatActivity {
 
             String nombreArchivo = file.getName();
 
-            URL url = new URL("http://10.0.2.2:8080/controlgastos/subir_evidencia.php");
+            URL url = new URL("https://mariana.alwaysdata.net/subir_evidencia.php");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -292,10 +292,14 @@ public class AddExpenseActivity extends AppCompatActivity {
     private void cargarEvidenciaDesdeServidor(String rutaServidor) {
         new Thread(() -> {
             try {
-                String urlCompleta = "http://10.0.2.2:8080/controlgastos/" + rutaServidor;
+                String urlCompleta = "https://mariana.alwaysdata.net/" + rutaServidor;
 
                 URL url = new URL(urlCompleta);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36");
+                conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                conn.setRequestProperty("Referer", "https://mariana.alwaysdata.net/");
+                conn.setRequestProperty("Origin", "https://mariana.alwaysdata.net/");
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(5000);
                 conn.setRequestMethod("GET");
