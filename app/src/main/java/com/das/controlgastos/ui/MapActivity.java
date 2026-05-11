@@ -13,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.das.controlgastos.LocationTrackingService;
 import com.das.controlgastos.R;
@@ -59,6 +60,7 @@ public class MapActivity extends AppCompatActivity {
                 getApplicationContext(),
                 getSharedPreferences("osmdroid", MODE_PRIVATE)
         );
+
         Configuration.getInstance().setUserAgentValue(getPackageName());
 
         setContentView(R.layout.activity_map);
@@ -67,6 +69,12 @@ public class MapActivity extends AppCompatActivity {
         tvDistancia = findViewById(R.id.tvDistancia);
         btnSeguimiento = findViewById(R.id.btnSeguimiento);
 
+        if (map == null) {
+            Toast.makeText(this, "No se encontró el mapa en el layout", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setMultiTouchControls(true);
 
@@ -74,32 +82,14 @@ public class MapActivity extends AppCompatActivity {
         longitud = getIntent().getDoubleExtra("longitud", 0.0);
         titulo = getIntent().getStringExtra("titulo");
 
+        if (titulo == null || titulo.trim().isEmpty()) {
+            titulo = "Ubicación del gasto";
+        }
+
         mostrarUbicacionDelGasto();
         configurarEstadoBoton(false);
 
-        btnSeguimiento.setOnClickListener(v -> {
-            if (!seguimientoActivo) {
-                Intent serviceIntent = new Intent(MapActivity.this, LocationTrackingService.class);
-                serviceIntent.putExtra("latitud", latitud);
-                serviceIntent.putExtra("longitud", longitud);
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent);
-                } else {
-                    startService(serviceIntent);
-                }
-
-                seguimientoActivo = true;
-                configurarEstadoBoton(true);
-            } else {
-                Intent serviceIntent = new Intent(MapActivity.this, LocationTrackingService.class);
-                stopService(serviceIntent);
-
-                seguimientoActivo = false;
-                configurarEstadoBoton(false);
-                tvDistancia.setText("📍 Distancia actual: --");
-            }
-        });
+        btnSeguimiento.setOnClickListener(v -> alternarSeguimiento());
     }
 
     private void mostrarUbicacionDelGasto() {
@@ -113,15 +103,46 @@ public class MapActivity extends AppCompatActivity {
 
         map.getController().setZoom(18.0);
         map.getController().setCenter(puntoGasto);
+
         map.getOverlays().clear();
 
         Marker marker = new Marker(map);
         marker.setPosition(puntoGasto);
-        marker.setTitle(titulo != null && !titulo.isEmpty() ? titulo : "Ubicación del gasto");
-        map.getOverlays().add(marker);
+        marker.setTitle(titulo);
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
 
-        if (titulo != null && !titulo.isEmpty()) {
-            Toast.makeText(this, "📍 " + titulo, Toast.LENGTH_SHORT).show();
+        map.getOverlays().add(marker);
+        map.invalidate();
+
+        Toast.makeText(this, "📍 " + titulo, Toast.LENGTH_SHORT).show();
+    }
+
+    private void alternarSeguimiento() {
+        if (latitud == 0.0 && longitud == 0.0) {
+            Toast.makeText(this, "No hay ubicación para seguir", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent serviceIntent = new Intent(MapActivity.this, LocationTrackingService.class);
+        serviceIntent.putExtra("latitud", latitud);
+        serviceIntent.putExtra("longitud", longitud);
+
+        if (!seguimientoActivo) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(this, serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+
+            seguimientoActivo = true;
+            configurarEstadoBoton(true);
+
+        } else {
+            stopService(serviceIntent);
+
+            seguimientoActivo = false;
+            configurarEstadoBoton(false);
+            tvDistancia.setText("📍 Distancia actual: --");
         }
     }
 
@@ -129,8 +150,11 @@ public class MapActivity extends AppCompatActivity {
         if (distancia < 1000) {
             tvDistancia.setText("📍 Distancia actual: " + (int) distancia + " m");
         } else {
-            tvDistancia.setText("📍 Distancia actual: " +
-                    String.format(Locale.getDefault(), "%.2f", distancia / 1000f) + " km");
+            tvDistancia.setText(
+                    "📍 Distancia actual: " +
+                            String.format(Locale.getDefault(), "%.2f", distancia / 1000f) +
+                            " km"
+            );
         }
     }
 
@@ -151,8 +175,20 @@ public class MapActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (map != null) {
+            map.onResume();
+        }
+
         if (!receiverRegistrado) {
-            registerReceiver(distanceReceiver, new IntentFilter(LocationTrackingService.ACTION_DISTANCE_UPDATE));
+            IntentFilter filter = new IntentFilter(LocationTrackingService.ACTION_DISTANCE_UPDATE);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(distanceReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(distanceReceiver, filter);
+            }
+
             receiverRegistrado = true;
         }
     }
@@ -160,9 +196,24 @@ public class MapActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+
+        if (map != null) {
+            map.onPause();
+        }
+
         if (receiverRegistrado) {
             unregisterReceiver(distanceReceiver);
             receiverRegistrado = false;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        if (seguimientoActivo) {
+            Intent serviceIntent = new Intent(MapActivity.this, LocationTrackingService.class);
+            stopService(serviceIntent);
         }
     }
 }

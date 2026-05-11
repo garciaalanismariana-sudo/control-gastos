@@ -22,6 +22,8 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
+import java.util.Locale;
+
 public class LocationTrackingService extends Service {
 
     public static final String ACTION_DISTANCE_UPDATE = "com.das.controlgastos.DISTANCE_UPDATE";
@@ -39,22 +41,27 @@ public class LocationTrackingService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         createNotificationChannel();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         gastoLatitud = intent.getDoubleExtra("latitud", 0.0);
         gastoLongitud = intent.getDoubleExtra("longitud", 0.0);
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Seguimiento activo")
-                .setContentText("Calculando distancia al gasto")
-                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-                .setOngoing(true)
-                .build();
+        if (gastoLatitud == 0.0 && gastoLongitud == 0.0) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
 
+        Notification notification = crearNotificacion("Calculando distancia al gasto...");
         startForeground(NOTIFICATION_ID, notification);
 
         iniciarActualizacionesUbicacion();
@@ -65,41 +72,46 @@ public class LocationTrackingService extends Service {
     private void iniciarActualizacionesUbicacion() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
+
             stopSelf();
             return;
         }
 
         LocationRequest locationRequest = new LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
-                5000
+                3000
         )
-                .setMinUpdateIntervalMillis(3000)
+                .setMinUpdateIntervalMillis(2000)
+                .setWaitForAccurateLocation(false)
                 .build();
 
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) return;
-
-                Location location = locationResult.getLastLocation();
-                if (location != null) {
-                    float[] results = new float[1];
-                    Location.distanceBetween(
-                            location.getLatitude(),
-                            location.getLongitude(),
-                            gastoLatitud,
-                            gastoLongitud,
-                            results
-                    );
-
-                    float distancia = results[0];
-
-                    Intent broadcastIntent = new Intent(ACTION_DISTANCE_UPDATE);
-                    broadcastIntent.putExtra(EXTRA_DISTANCE, distancia);
-                    sendBroadcast(broadcastIntent);
-
-                    actualizarNotificacion(distancia);
+                if (locationResult == null) {
+                    return;
                 }
+
+                Location ubicacionActual = locationResult.getLastLocation();
+
+                if (ubicacionActual == null) {
+                    return;
+                }
+
+                float[] results = new float[1];
+
+                Location.distanceBetween(
+                        ubicacionActual.getLatitude(),
+                        ubicacionActual.getLongitude(),
+                        gastoLatitud,
+                        gastoLongitud,
+                        results
+                );
+
+                float distancia = results[0];
+
+                enviarDistancia(distancia);
+                actualizarNotificacion(distancia);
             }
         };
 
@@ -110,34 +122,58 @@ public class LocationTrackingService extends Service {
         );
     }
 
-    private void actualizarNotificacion(float distancia) {
-        String texto;
-        if (distancia < 1000) {
-            texto = "Distancia al gasto: " + (int) distancia + " m";
-        } else {
-            texto = "Distancia al gasto: " + String.format("%.2f", distancia / 1000f) + " km";
-        }
+    private void enviarDistancia(float distancia) {
+        Intent broadcastIntent = new Intent(ACTION_DISTANCE_UPDATE);
+        broadcastIntent.setPackage(getPackageName());
+        broadcastIntent.putExtra(EXTRA_DISTANCE, distancia);
+        sendBroadcast(broadcastIntent);
+    }
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+    private void actualizarNotificacion(float distancia) {
+        Notification notification = crearNotificacion(formatearDistancia(distancia));
+
+        NotificationManager manager = getSystemService(NotificationManager.class);
+
+        if (manager != null) {
+            manager.notify(NOTIFICATION_ID, notification);
+        }
+    }
+
+    private Notification crearNotificacion(String texto) {
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Seguimiento activo")
                 .setContentText(texto)
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)
+                .setOnlyAlertOnce(true)
                 .build();
+    }
 
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        manager.notify(NOTIFICATION_ID, notification);
+    private String formatearDistancia(float distancia) {
+        if (distancia < 1000) {
+            return "Distancia al gasto: " + (int) distancia + " m";
+        } else {
+            return "Distancia al gasto: " +
+                    String.format(Locale.getDefault(), "%.2f", distancia / 1000f) +
+                    " km";
+        }
     }
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Tracking Service",
+                    "Seguimiento de distancia",
                     NotificationManager.IMPORTANCE_LOW
             );
+
+            channel.setDescription("Calcula la distancia entre tu ubicación actual y el gasto");
+
             NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
+
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
         }
     }
 

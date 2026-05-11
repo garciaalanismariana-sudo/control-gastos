@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,7 +14,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.das.controlgastos.adapter.ExpenseAdapter;
-import com.das.controlgastos.database.DatabaseHelper;
 import com.das.controlgastos.model.Expense;
 import com.das.controlgastos.ui.AddExpenseActivity;
 import com.das.controlgastos.ui.LoginActivity;
@@ -21,17 +21,25 @@ import com.das.controlgastos.ui.SettingsActivity;
 import com.das.controlgastos.utils.NotificationHelper;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String BASE_URL = "https://gastos-api-495723811676.us-central1.run.app/";
     private RecyclerView recyclerViewExpenses;
     private ExpenseAdapter expenseAdapter;
     private List<Expense> expenseList;
 
     private FloatingActionButton fabAddExpense;
-    private DatabaseHelper databaseHelper;
 
     private TextView tvTotal;
     private Button btnNotification, btnSettings;
@@ -55,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         NotificationHelper.createChannel(this);
-        databaseHelper = new DatabaseHelper(this);
 
         recyclerViewExpenses = findViewById(R.id.recyclerViewExpenses);
         recyclerViewExpenses.setLayoutManager(new LinearLayoutManager(this));
@@ -83,19 +90,21 @@ public class MainActivity extends AppCompatActivity {
                     intent.putExtra("evidencia", expense.getEvidencia());
                     startActivityForResult(intent, 1);
                 },
-                expense -> showDeleteDialog(expense)
+                this::showDeleteDialog
         );
 
         recyclerViewExpenses.setAdapter(expenseAdapter);
 
-        loadExpenses();
-
         fabAddExpense.setOnClickListener(v ->
-                startActivityForResult(new Intent(this, AddExpenseActivity.class), 1)
+                startActivityForResult(
+                        new Intent(this, AddExpenseActivity.class),
+                        1
+                )
         );
 
         btnNotification.setOnClickListener(v -> {
             SharedPreferences preferences = getSharedPreferences("app_settings", MODE_PRIVATE);
+
             if (preferences.getBoolean("notifications", true)) {
                 NotificationHelper.showNotification(this);
             }
@@ -126,14 +135,101 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        loadExpenses();
     }
 
     private void loadExpenses() {
-        expenseList.clear();
-        expenseList.addAll(databaseHelper.getAllExpenses(userEmail));
-        expenseAdapter.notifyDataSetChanged();
-        updateTotal();
-        ExpenseWidgetProvider.actualizarTodosLosWidgets(this);
+        new Thread(() -> {
+            try {
+                URL url = new URL(BASE_URL + "get_expenses.php");
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+                conn.setRequestProperty(
+                        "Content-Type",
+                        "application/x-www-form-urlencoded"
+                );
+
+                String params =
+                        "user_email=" + java.net.URLEncoder.encode(userEmail, "UTF-8");
+
+                OutputStream os = conn.getOutputStream();
+                os.write(params.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream())
+                );
+
+                StringBuilder result = new StringBuilder();
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
+                }
+
+                reader.close();
+                conn.disconnect();
+
+                System.out.println("RESPUESTA GET_EXPENSES: " + result.toString());
+
+                org.json.JSONObject json = new org.json.JSONObject(result.toString());
+                if (json.getBoolean("success")) {
+                    JSONArray array = json.getJSONArray("expenses");
+                    List<Expense> listaServidor = new ArrayList<>();
+
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject obj = array.getJSONObject(i);
+
+                        Expense expense = new Expense(
+                                obj.getInt("id"),
+                                obj.getString("title"),
+                                obj.getDouble("amount"),
+                                obj.getString("category"),
+                                obj.getString("date"),
+                                obj.optDouble("latitud", 0.0),
+                                obj.optDouble("longitud", 0.0),
+                                obj.optString("evidencia", "")
+                        );
+
+                        listaServidor.add(expense);
+                    }
+
+                    runOnUiThread(() -> {
+                        expenseList.clear();
+                        expenseList.addAll(listaServidor);
+                        expenseAdapter.notifyDataSetChanged();
+                        updateTotal();
+                        ExpenseWidgetProvider.actualizarTodosLosWidgets(this);
+                    });
+                } else {
+                    String message = json.optString("message", "Error cargando gastos");
+
+                    runOnUiThread(() ->
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    message,
+                                    Toast.LENGTH_SHORT
+                            ).show()
+                    );
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+
+                runOnUiThread(() ->
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Error: " + e.getMessage(),
+                                Toast.LENGTH_LONG
+                        ).show()
+                );
+            }
+        }).start();
     }
 
     private void updateTotal() {
@@ -141,36 +237,122 @@ public class MainActivity extends AppCompatActivity {
         String currencySymbol = preferences.getString("currency", "$");
 
         double total = 0;
+
         for (Expense e : expenseList) {
             total += e.getAmount();
         }
 
-        tvTotal.setText(getString(R.string.total_spent_format, currencySymbol, total));
+        tvTotal.setText(
+                getString(
+                        R.string.total_spent_format,
+                        currencySymbol,
+                        total
+                )
+        );
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadExpenses();
+
+        if (userEmail != null && !userEmail.isEmpty()) {
+            loadExpenses();
+        }
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(
+            int requestCode,
+            int resultCode,
+            Intent data
+    ) {
+        super.onActivityResult(requestCode, resultCode, data);
+
         if (requestCode == 1 && resultCode == RESULT_OK) {
             loadExpenses();
         }
-        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void showDeleteDialog(Expense expense) {
         new AlertDialog.Builder(this)
                 .setTitle("Eliminar gasto")
                 .setMessage("¿Deseas eliminar este gasto?")
-                .setPositiveButton("Sí", (dialog, which) -> {
-                    databaseHelper.deleteExpense(expense.getId(), userEmail);
-                    loadExpenses();
-                })
+                .setPositiveButton("Sí", (dialog, which) ->
+                        eliminarGastoServidor(expense.getId())
+                )
                 .setNegativeButton("No", null)
                 .show();
+    }
+
+    private void eliminarGastoServidor(int id) {
+        new Thread(() -> {
+            try {
+                URL url = new URL(BASE_URL + "delete_expense.php");
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+                conn.setRequestProperty(
+                        "Content-Type",
+                        "application/x-www-form-urlencoded"
+                );
+
+                String params =
+                        "id=" + java.net.URLEncoder.encode(String.valueOf(id), "UTF-8") +
+                                "&user_email=" + java.net.URLEncoder.encode(userEmail, "UTF-8");
+
+                OutputStream os = conn.getOutputStream();
+                os.write(params.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream())
+                );
+
+                StringBuilder result = new StringBuilder();
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
+                }
+
+                reader.close();
+                conn.disconnect();
+
+                JSONObject json = new JSONObject(result.toString());
+
+                runOnUiThread(() -> {
+                    if (json.optBoolean("success", false)) {
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Gasto eliminado",
+                                Toast.LENGTH_SHORT
+                        ).show();
+
+                        loadExpenses();
+                    } else {
+                        Toast.makeText(
+                                MainActivity.this,
+                                json.optString("message", "No se pudo eliminar"),
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+
+                runOnUiThread(() ->
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Error eliminando gasto",
+                                Toast.LENGTH_SHORT
+                        ).show()
+                );
+            }
+        }).start();
     }
 }

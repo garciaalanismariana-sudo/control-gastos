@@ -25,7 +25,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 
 import com.das.controlgastos.R;
-import com.das.controlgastos.database.DatabaseHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
@@ -51,8 +50,6 @@ public class AddExpenseActivity extends AppCompatActivity {
     private TextView tvUbicacionEstado, tvEvidenciaEstado;
     private ImageView ivEvidencia;
 
-    private DatabaseHelper databaseHelper;
-
     private int expenseId = -1;
 
     private double latitud = 0.0;
@@ -66,6 +63,7 @@ public class AddExpenseActivity extends AppCompatActivity {
 
     private ActivityResultLauncher<Intent> takePictureLauncher;
 
+    private static final String BASE_URL = "https://gastos-api-495723811676.us-central1.run.app/";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,7 +81,6 @@ public class AddExpenseActivity extends AppCompatActivity {
         tvEvidenciaEstado = findViewById(R.id.tvEvidenciaEstado);
         ivEvidencia = findViewById(R.id.ivEvidencia);
 
-        databaseHelper = new DatabaseHelper(this);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         takePictureLauncher = registerForActivityResult(
@@ -100,24 +97,7 @@ public class AddExpenseActivity extends AppCompatActivity {
                 }
         );
 
-        etDate.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-
-            int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH);
-            int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-            DatePickerDialog datePickerDialog = new DatePickerDialog(
-                    AddExpenseActivity.this,
-                    (view, selectedYear, selectedMonth, selectedDay) -> {
-                        String formattedDate = selectedDay + "/" + (selectedMonth + 1) + "/" + selectedYear;
-                        etDate.setText(formattedDate);
-                    },
-                    year, month, day
-            );
-
-            datePickerDialog.show();
-        });
+        etDate.setOnClickListener(v -> mostrarSelectorFecha());
 
         btnUbicacion.setOnClickListener(v -> obtenerUbicacionActual());
 
@@ -131,8 +111,37 @@ public class AddExpenseActivity extends AppCompatActivity {
 
         btnCapturarEvidencia.setOnClickListener(v -> capturarEvidencia());
 
+        cargarDatosSiEsEdicion();
+
+        actualizarEstadoUbicacion();
+        actualizarEstadoEvidencia();
+
+        btnSaveExpense.setOnClickListener(v -> guardarGasto());
+    }
+
+    private void mostrarSelectorFecha() {
+        Calendar calendar = Calendar.getInstance();
+
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                AddExpenseActivity.this,
+                (view, selectedYear, selectedMonth, selectedDay) -> {
+                    String formattedDate = selectedDay + "/" + (selectedMonth + 1) + "/" + selectedYear;
+                    etDate.setText(formattedDate);
+                },
+                year, month, day
+        );
+
+        datePickerDialog.show();
+    }
+
+    private void cargarDatosSiEsEdicion() {
         if (getIntent() != null && getIntent().hasExtra("id")) {
             expenseId = getIntent().getIntExtra("id", -1);
+
             String title = getIntent().getStringExtra("title");
             double amount = getIntent().getDoubleExtra("amount", 0);
             String category = getIntent().getStringExtra("category");
@@ -153,11 +162,6 @@ public class AddExpenseActivity extends AppCompatActivity {
 
             btnSaveExpense.setText("Actualizar gasto");
         }
-
-        actualizarEstadoUbicacion();
-        actualizarEstadoEvidencia();
-
-        btnSaveExpense.setOnClickListener(v -> guardarGasto());
     }
 
     private void guardarGasto() {
@@ -199,6 +203,7 @@ public class AddExpenseActivity extends AppCompatActivity {
         }
 
         double amount;
+
         try {
             amount = Double.parseDouble(amountText);
         } catch (NumberFormatException e) {
@@ -214,6 +219,7 @@ public class AddExpenseActivity extends AppCompatActivity {
 
             if (evidenciaPathLocal != null && !evidenciaPathLocal.isEmpty()) {
                 String rutaSubida = subirEvidenciaAlServidor(evidenciaPathLocal);
+
                 if (rutaSubida != null && !rutaSubida.equals("error")) {
                     evidenciaFinal = rutaSubida;
                 }
@@ -221,38 +227,55 @@ public class AddExpenseActivity extends AppCompatActivity {
 
             String finalEvidencia = evidenciaFinal;
 
-            runOnUiThread(() -> {
-                if (expenseId == -1) {
-                    databaseHelper.insertExpense(title, finalAmount, category, date, latitud, longitud, finalEvidencia, userEmail);
-                    Toast.makeText(AddExpenseActivity.this, "Gasto guardado correctamente", Toast.LENGTH_SHORT).show();
-                } else {
-                    databaseHelper.updateExpense(expenseId, title, finalAmount, category, date, latitud, longitud, finalEvidencia, userEmail);
-                    Toast.makeText(AddExpenseActivity.this, "Gasto actualizado correctamente", Toast.LENGTH_SHORT).show();
-                }
-
-                setResult(RESULT_OK);
-                finish();
-            });
+            if (expenseId == -1) {
+                guardarGastoEnServidor(
+                        title,
+                        finalAmount,
+                        category,
+                        date,
+                        latitud,
+                        longitud,
+                        finalEvidencia,
+                        userEmail
+                );
+            } else {
+                actualizarGastoEnServidor(
+                        expenseId,
+                        title,
+                        finalAmount,
+                        category,
+                        date,
+                        latitud,
+                        longitud,
+                        finalEvidencia,
+                        userEmail
+                );
+            }
         }).start();
     }
 
     private String subirEvidenciaAlServidor(String pathLocal) {
         try {
             File file = new File(pathLocal);
-            if (!file.exists()) return "error";
+
+            if (!file.exists()) {
+                return "error";
+            }
 
             Bitmap bitmap = BitmapFactory.decodeStream(new FileInputStream(file));
             ByteArrayOutputStream stream = new ByteArrayOutputStream();
+
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream);
+
             byte[] bytes = stream.toByteArray();
             String imagenBase64 = Base64.encodeToString(bytes, Base64.DEFAULT);
-
             String nombreArchivo = file.getName();
 
-            URL url = new URL("https://mariana.alwaysdata.net/subir_evidencia.php");
+            URL url = new URL(BASE_URL + "subir_evidencia.php");
+
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
@@ -274,6 +297,7 @@ public class AddExpenseActivity extends AppCompatActivity {
 
             StringBuilder resultBuilder = new StringBuilder();
             String line;
+
             while ((line = reader.readLine()) != null) {
                 resultBuilder.append(line);
             }
@@ -289,19 +313,172 @@ public class AddExpenseActivity extends AppCompatActivity {
         }
     }
 
+    private void guardarGastoEnServidor(
+            String title,
+            double amount,
+            String category,
+            String date,
+            double latitud,
+            double longitud,
+            String evidencia,
+            String userEmail
+    ) {
+        try {
+            URL url = new URL(BASE_URL + "add_expense.php");
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty(
+                    "Content-Type",
+                    "application/x-www-form-urlencoded"
+            );
+
+            String params =
+                    "title=" + java.net.URLEncoder.encode(title, "UTF-8") +
+                            "&amount=" + java.net.URLEncoder.encode(String.valueOf(amount), "UTF-8") +
+                            "&category=" + java.net.URLEncoder.encode(category, "UTF-8") +
+                            "&date=" + java.net.URLEncoder.encode(date, "UTF-8") +
+                            "&latitud=" + java.net.URLEncoder.encode(String.valueOf(latitud), "UTF-8") +
+                            "&longitud=" + java.net.URLEncoder.encode(String.valueOf(longitud), "UTF-8") +
+                            "&evidencia=" + java.net.URLEncoder.encode(evidencia == null ? "" : evidencia, "UTF-8") +
+                            "&user_email=" + java.net.URLEncoder.encode(userEmail, "UTF-8");
+
+            OutputStream os = conn.getOutputStream();
+            os.write(params.getBytes());
+            os.flush();
+            os.close();
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream())
+            );
+
+            StringBuilder result = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                result.append(line);
+            }
+
+            reader.close();
+            conn.disconnect();
+
+            runOnUiThread(() -> {
+                Toast.makeText(
+                        AddExpenseActivity.this,
+                        result.toString(),
+                        Toast.LENGTH_LONG
+                ).show();
+
+                setResult(RESULT_OK);
+                finish();
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            runOnUiThread(() ->
+                    Toast.makeText(
+                            AddExpenseActivity.this,
+                            "Error conectando API",
+                            Toast.LENGTH_LONG
+                    ).show()
+            );
+        }
+    }
+
+    private void actualizarGastoEnServidor(
+            int id,
+            String title,
+            double amount,
+            String category,
+            String date,
+            double latitud,
+            double longitud,
+            String evidencia,
+            String userEmail
+    ) {
+        try {
+            URL url = new URL(BASE_URL + "update_expense.php");
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty(
+                    "Content-Type",
+                    "application/x-www-form-urlencoded"
+            );
+
+            String params =
+                    "id=" + java.net.URLEncoder.encode(String.valueOf(id), "UTF-8") +
+                            "&title=" + java.net.URLEncoder.encode(title, "UTF-8") +
+                            "&amount=" + java.net.URLEncoder.encode(String.valueOf(amount), "UTF-8") +
+                            "&category=" + java.net.URLEncoder.encode(category, "UTF-8") +
+                            "&date=" + java.net.URLEncoder.encode(date, "UTF-8") +
+                            "&latitud=" + java.net.URLEncoder.encode(String.valueOf(latitud), "UTF-8") +
+                            "&longitud=" + java.net.URLEncoder.encode(String.valueOf(longitud), "UTF-8") +
+                            "&evidencia=" + java.net.URLEncoder.encode(evidencia == null ? "" : evidencia, "UTF-8") +
+                            "&user_email=" + java.net.URLEncoder.encode(userEmail, "UTF-8");
+
+            OutputStream os = conn.getOutputStream();
+            os.write(params.getBytes());
+            os.flush();
+            os.close();
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream())
+            );
+
+            StringBuilder result = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                result.append(line);
+            }
+
+            reader.close();
+            conn.disconnect();
+
+            runOnUiThread(() -> {
+                Toast.makeText(
+                        AddExpenseActivity.this,
+                        result.toString(),
+                        Toast.LENGTH_LONG
+                ).show();
+
+                setResult(RESULT_OK);
+                finish();
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            runOnUiThread(() ->
+                    Toast.makeText(
+                            AddExpenseActivity.this,
+                            "Error actualizando gasto",
+                            Toast.LENGTH_LONG
+                    ).show()
+            );
+        }
+    }
+
     private void cargarEvidenciaDesdeServidor(String rutaServidor) {
         new Thread(() -> {
             try {
-                String urlCompleta = "https://mariana.alwaysdata.net/" + rutaServidor;
+                String urlCompleta;
+
+                if (rutaServidor.startsWith("http")) {
+                    urlCompleta = rutaServidor;
+                } else {
+                    urlCompleta = BASE_URL + rutaServidor;
+                }
 
                 URL url = new URL(urlCompleta);
+
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36");
-                conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                conn.setRequestProperty("Referer", "https://mariana.alwaysdata.net/");
-                conn.setRequestProperty("Origin", "https://mariana.alwaysdata.net/");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
                 conn.setRequestMethod("GET");
                 conn.connect();
 
@@ -379,7 +556,11 @@ public class AddExpenseActivity extends AppCompatActivity {
         }
 
         try {
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+            String timeStamp = new SimpleDateFormat(
+                    "yyyyMMdd_HHmmss",
+                    Locale.getDefault()
+            ).format(new Date());
+
             String nombreArchivo = "EVIDENCIA_" + timeStamp + "_";
 
             File directorio = getExternalFilesDir(null);
@@ -437,7 +618,11 @@ public class AddExpenseActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(
+            int requestCode,
+            @NonNull String[] permissions,
+            @NonNull int[] grantResults
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == 100) {
